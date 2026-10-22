@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       JAVA_TOOL_OPTIONS: "-Djava.awt.headless=true"
-      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -Djava.awt.headless=true"
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2560m -Dfile.encoding=UTF-8 -Djava.awt.headless=true"
 
     steps:
       - name: Checkout repository
@@ -42,13 +42,10 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK Licenses & Platform 36
+      - name: Accept Android SDK Licenses & Install Platform 36
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-36" "platform-tools" || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" "platform-tools" || true
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -70,11 +67,11 @@ jobs:
         run: |
           if [ -f debug.keystore.base64 ]; then
             echo "Restoring debug.keystore from debug.keystore.base64..."
-            base64 -d debug.keystore.base64 > debug.keystore
+            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || true
           fi
           if [ ! -s debug.keystore ]; then
             echo "Generating fresh debug.keystore..."
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+            keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
           ls -la debug.keystore
 
