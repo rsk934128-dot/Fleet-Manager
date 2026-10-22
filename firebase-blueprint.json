@@ -1,0 +1,204 @@
+{
+  "entities": {
+    "Device": {
+      "title": "Device",
+      "description": "Represents a managed device in the enterprise fleet.",
+      "type": "object",
+      "properties": {
+        "deviceName": {
+          "type": "string",
+          "description": "Name of the device"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model of the device"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["online", "offline", "warning"],
+          "description": "Current device status"
+        },
+        "batteryLevel": {
+          "type": "integer",
+          "description": "Battery percentage (0-100)"
+        },
+        "cpuUsage": {
+          "type": "integer",
+          "description": "CPU utilization percentage (0-100)"
+        },
+        "ramUsageMb": {
+          "type": "integer",
+          "description": "RAM used in megabytes"
+        },
+        "ramTotalMb": {
+          "type": "integer",
+          "description": "Total device RAM in megabytes"
+        },
+        "complianceStatus": {
+          "type": "string",
+          "enum": ["compliant", "violation", "pending"],
+          "description": "Policy compliance state"
+        },
+        "lastLatitude": {
+          "type": "number",
+          "description": "Last reported latitude"
+        },
+        "lastLongitude": {
+          "type": "number",
+          "description": "Last reported longitude"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp. Must be FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last updated timestamp. Must be FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["deviceName", "status", "batteryLevel", "complianceStatus", "createdAt", "updatedAt"]
+    },
+    "SecurityLog": {
+      "title": "SecurityLog",
+      "description": "Audit event log for compliance alerts or policy exceptions.",
+      "type": "object",
+      "properties": {
+        "deviceId": {
+          "type": "string",
+          "description": "Device ID associated with the log"
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "Device display name"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "warning", "info"],
+          "description": "Severity level of the incident"
+        },
+        "eventType": {
+          "type": "string",
+          "description": "Classification code of the event"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the incident"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Event creation timestamp. Must be FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["deviceId", "deviceName", "severity", "eventType", "description", "createdAt"]
+    },
+    "Geofence": {
+      "title": "Geofence",
+      "description": "Configured geographic perimeter for device policy monitoring.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name or label of the geofence"
+        },
+        "latitude": {
+          "type": "number",
+          "description": "Latitude of the center point"
+        },
+        "longitude": {
+          "type": "number",
+          "description": "Longitude of the center point"
+        },
+        "radiusMeters": {
+          "type": "integer",
+          "description": "Radius of the perimeter in meters"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp. Must be FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp. Must be FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["name", "latitude", "longitude", "radiusMeters", "createdAt", "updatedAt"]
+    },
+    "CameraSnapshot": {
+      "title": "CameraSnapshot",
+      "description": "Represents a surveillance photo or frame snapshot captured via remote or local camera commands.",
+      "type": "object",
+      "properties": {
+        "deviceId": {
+          "type": "string",
+          "description": "ID of the target fleet device"
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "Name of the target fleet device"
+        },
+        "timestamp": {
+          "type": "integer",
+          "description": "Epoch timestamp in milliseconds"
+        },
+        "cameraFacing": {
+          "type": "string",
+          "enum": ["back", "front"],
+          "description": "Camera lens facing direction"
+        },
+        "resolution": {
+          "type": "string",
+          "description": "Image capture resolution"
+        },
+        "triggerReason": {
+          "type": "string",
+          "description": "Reason for triggering capture"
+        },
+        "storageUrl": {
+          "type": "string",
+          "description": "Storage URL or preview image"
+        },
+        "base64Data": {
+          "type": "string",
+          "description": "Base64 encoded thumbnail or image payload"
+        },
+        "torchActive": {
+          "type": "boolean",
+          "description": "Whether torch was enabled"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes or details"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp. Must be FieldValue.serverTimestamp()."
+        }
+      },
+      "required": ["deviceId", "deviceName", "timestamp", "cameraFacing", "triggerReason", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/devices/{deviceId}": {
+      "schema": "Device",
+      "description": "Managed fleet devices belonging to the user."
+    },
+    "/users/{userId}/security_logs/{logId}": {
+      "schema": "SecurityLog",
+      "description": "Security and compliance logs recorded for the user's fleet."
+    },
+    "/users/{userId}/geofences/{geofenceId}": {
+      "schema": "Geofence",
+      "description": "Geofence perimeters managed by the user."
+    },
+    "/users/{userId}/camera_snapshots/{snapshotId}": {
+      "schema": "CameraSnapshot",
+      "description": "Surveillance snapshots captured for the user's fleet."
+    }
+  }
+}

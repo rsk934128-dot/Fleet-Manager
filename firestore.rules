@@ -1,0 +1,152 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net - default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+
+    function isValidDevice(data) {
+      return data.deviceName is string && data.deviceName.size() >= 1 && data.deviceName.size() <= 100 &&
+             (!('model' in data) || (data.model is string && data.model.size() <= 100)) &&
+             data.status in ['online', 'offline', 'warning'] &&
+             data.batteryLevel is int && data.batteryLevel >= 0 && data.batteryLevel <= 100 &&
+             (!('cpuUsage' in data) || (data.cpuUsage is int && data.cpuUsage >= 0 && data.cpuUsage <= 100)) &&
+             (!('ramUsageMb' in data) || (data.ramUsageMb is int && data.ramUsageMb >= 0 && data.ramUsageMb <= 131072)) &&
+             (!('ramTotalMb' in data) || (data.ramTotalMb is int && data.ramTotalMb >= 0 && data.ramTotalMb <= 131072)) &&
+             data.complianceStatus in ['compliant', 'violation', 'pending'] &&
+             (!('lastLatitude' in data) || (data.lastLatitude is number && data.lastLatitude >= -90.0 && data.lastLatitude <= 90.0)) &&
+             (!('lastLongitude' in data) || (data.lastLongitude is number && data.lastLongitude >= -180.0 && data.lastLongitude <= 180.0));
+    }
+
+    function isValidSecurityLog(data) {
+      return data.deviceId is string && data.deviceId.size() >= 1 && data.deviceId.size() <= 128 &&
+             data.deviceName is string && data.deviceName.size() >= 1 && data.deviceName.size() <= 100 &&
+             data.severity in ['critical', 'warning', 'info'] &&
+             data.eventType is string && data.eventType.size() >= 1 && data.eventType.size() <= 64 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 500;
+    }
+
+    function isValidGeofence(data) {
+      return data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.latitude is number && data.latitude >= -90.0 && data.latitude <= 90.0 &&
+             data.longitude is number && data.longitude >= -180.0 && data.longitude <= 180.0 &&
+             data.radiusMeters is int && data.radiusMeters >= 10 && data.radiusMeters <= 50000;
+    }
+
+    function isValidCameraSnapshot(data) {
+      return data.deviceId is string && data.deviceId.size() >= 1 && data.deviceId.size() <= 128 &&
+             data.deviceName is string && data.deviceName.size() >= 1 && data.deviceName.size() <= 100 &&
+             data.cameraFacing in ['back', 'front'] &&
+             data.triggerReason is string && data.triggerReason.size() >= 1 && data.triggerReason.size() <= 100;
+    }
+
+    // --- User-Scoped Collections ---
+
+    match /users/{userId} {
+      allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+      // Devices Subcollection
+      match /devices/{deviceId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(deviceId) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time &&
+                         isValidDevice(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time &&
+                         isValidDevice(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'deviceName', 'model', 'status', 'batteryLevel',
+                           'cpuUsage', 'ramUsageMb', 'ramTotalMb', 'complianceStatus',
+                           'lastLatitude', 'lastLongitude', 'updatedAt'
+                         ]);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      // Security Logs Subcollection (Append-only by user)
+      match /security_logs/{logId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(logId) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         isValidSecurityLog(incoming());
+
+        allow update: if false; // Logs are immutable audit trails
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      // Geofences Subcollection
+      match /geofences/{geofenceId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(geofenceId) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time &&
+                         isValidGeofence(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time &&
+                         isValidGeofence(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'name', 'latitude', 'longitude', 'radiusMeters', 'updatedAt'
+                         ]);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      // Camera Snapshots Subcollection
+      match /camera_snapshots/{snapshotId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(snapshotId) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         isValidCameraSnapshot(incoming());
+
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Fleet Manager",
+  "description": "Enterprise device diagnostics, security logs, and fleet status monitoring app with Firebase Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
